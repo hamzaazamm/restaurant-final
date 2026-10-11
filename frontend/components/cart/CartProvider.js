@@ -90,6 +90,8 @@ export default function CartProvider({ children }) {
   // Computed values
   const itemCount = state.items.reduce((sum, i) => sum + i.quantity, 0);
   const subtotal = state.items.reduce((sum, i) => sum + i.unitPricePKR * i.quantity, 0);
+  const deliveryCharge = subtotal >= 1500 ? 0 : (subtotal > 0 ? 150 : 0);
+  const total = subtotal + deliveryCharge;
 
   const addItem = (product, variantId, variantName, extras, quantity, unitPricePKR) =>
     dispatch({ type: 'ADD_ITEM', payload: { product, variantId, variantName, extras, quantity, unitPricePKR } });
@@ -104,7 +106,7 @@ export default function CartProvider({ children }) {
     dispatch({ type: 'CLEAR_CART' });
 
   return (
-    <CartContext.Provider value={{ items: state.items, itemCount, subtotal, addItem, updateQuantity, removeItem, clearCart, hydrated: state.hydrated }}>
+    <CartContext.Provider value={{ items: state.items, itemCount, subtotal, deliveryCharge, total, addItem, updateQuantity, removeItem, clearCart, hydrated: state.hydrated }}>
       {children}
     </CartContext.Provider>
   );

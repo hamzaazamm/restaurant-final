@@ -1,10 +1,36 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import MenuSection from '@/components/home/MenuSection';
 import { CATEGORIES, PRODUCTS } from '@/lib/data';
 
 export default function MenuPage() {
+  const [categories, setCategories] = useState(CATEGORIES);
+  const [products, setProducts] = useState(PRODUCTS);
+
+  useEffect(() => {
+    const loadDynamicData = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1';
+        const [catRes, prodRes] = await Promise.allSettled([
+          fetch(`${apiUrl}/categories`).then((r) => r.json()),
+          fetch(`${apiUrl}/products?limit=50`).then((r) => r.json()),
+        ]);
+
+        if (catRes.status === 'fulfilled' && catRes.value?.data?.length > 0) {
+          setCategories([{ id: 'all', name: 'All Menu', icon: '🍽️', slug: 'all' }, ...catRes.value.data]);
+        }
+        if (prodRes.status === 'fulfilled' && prodRes.value?.data?.products?.length > 0) {
+          setProducts(prodRes.value.data.products);
+        }
+      } catch (err) {
+        console.warn('API fetch failed in menu page, using static data', err);
+      }
+    };
+
+    loadDynamicData();
+  }, []);
+
   return (
     <div className="pt-20 min-h-screen bg-[#FAFAFC]">
       {/* Banner */}
@@ -21,7 +47,7 @@ export default function MenuPage() {
       </div>
 
       {/* Menu Section */}
-      <MenuSection products={PRODUCTS} categories={CATEGORIES} />
+      <MenuSection products={products} categories={categories} />
     </div>
   );
 }

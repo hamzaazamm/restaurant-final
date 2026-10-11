@@ -53,17 +53,17 @@ export default function ProductCustomizerModal({ product, isOpen, onClose }) {
       >
         {/* Header with image */}
         <div className="relative h-48 w-full bg-slate-900 overflow-hidden">
-          {product.images?.[0] ? (
-            <Image
-              src={product.images[0]}
-              alt={product.name}
-              fill
-              className="object-cover"
-              sizes="(max-width: 640px) 100vw, 500px"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-6xl">🍔</div>
-          )}
+          <Image
+            src={
+              product.images?.[0] ||
+              'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=800&q=80'
+            }
+            alt={product.name}
+            fill
+            unoptimized
+            className="object-cover"
+            sizes="(max-width: 640px) 100vw, 500px"
+          />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
           
           <button

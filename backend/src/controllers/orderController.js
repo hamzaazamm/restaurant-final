@@ -83,10 +83,11 @@ const orderController = {
   async updateStatus(req, res, next) {
     try {
       const { status, note } = req.body;
+      const performedBy = req.user ? req.user._id : null;
       const order = await orderService.updateStatus(
         req.params.id,
         status,
-        req.user._id,
+        performedBy,
         note
       );
       res.status(200).json({
@@ -101,7 +102,8 @@ const orderController = {
 
   async recordPayment(req, res, next) {
     try {
-      const order = await orderService.recordPaymentCollection(req.params.id, req.user._id);
+      const staffId = req.user ? req.user._id : null;
+      const order = await orderService.recordPaymentCollection(req.params.id, staffId);
       res.status(200).json({
         success: true,
         message: 'COD payment recorded as collected',

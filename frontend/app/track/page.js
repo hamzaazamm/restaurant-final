@@ -109,7 +109,7 @@ function TrackOrderContent() {
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold text-[#0032A5] uppercase">Order Number:</span>
                   <span className="font-poppins font-black text-base text-gray-900 bg-blue-50 px-2 py-0.5 rounded">
-                    {order.orderNumber}
+                    {order.orderRef || order.orderNumber}
                   </span>
                 </div>
                 <p className="text-xs text-gray-400 mt-1">

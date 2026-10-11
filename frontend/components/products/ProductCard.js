@@ -5,10 +5,28 @@ import { useState } from 'react';
 import { useCart } from '@/components/cart/CartProvider';
 import ProductCustomizerModal from './ProductCustomizerModal';
 
+const CATEGORY_FALLBACKS = {
+  burgers: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=800&q=80',
+  pizzas: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=800&q=80',
+  'fried-chicken': 'https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?w=800&q=80',
+  deals: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=800&q=80',
+  sides: 'https://images.unsplash.com/photo-1585109649139-366815a0d713?w=800&q=80',
+  drinks: 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=800&q=80',
+};
+
+const getDefaultImage = (product) => {
+  if (product.images && product.images.length > 0 && product.images[0]) {
+    return product.images[0];
+  }
+  const slug = product.category?.slug || (typeof product.category === 'string' ? product.category : '');
+  return CATEGORY_FALLBACKS[slug] || 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=800&q=80';
+};
+
 export default function ProductCard({ product }) {
   const { addItem } = useCart();
   const [added, setAdded] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [imgSrc, setImgSrc] = useState(getDefaultImage(product));
 
   // Default variant or base price
   const defaultVariant = product.variants?.find((v) => v.isDefault && v.isAvailable) || product.variants?.[0];
@@ -43,20 +61,18 @@ export default function ProductCard({ product }) {
         aria-label={product.name}
       >
         {/* Product Image Container */}
-        <div className="relative w-full aspect-[4/3] bg-gray-50 overflow-hidden">
-          {product.images?.[0] ? (
-            <Image
-              src={product.images[0]}
-              alt={product.name}
-              fill
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-              className="object-cover transition-transform duration-500 group-hover:scale-108"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-5xl bg-slate-100">
-              🍔
-            </div>
-          )}
+        <div className="relative w-full aspect-[4/3] bg-gray-100 overflow-hidden">
+          <Image
+            src={imgSrc}
+            alt={product.name}
+            fill
+            unoptimized
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            className="object-cover transition-transform duration-500 group-hover:scale-105"
+            onError={() => {
+              setImgSrc('https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=800&q=80');
+            }}
+          />
 
           {/* Badges */}
           <div className="absolute top-2.5 left-2.5 flex flex-col gap-1.5 z-10">

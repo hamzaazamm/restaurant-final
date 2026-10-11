@@ -57,16 +57,16 @@ export default function DealsBanner({ deals = [] }) {
                   <div className="flex flex-col sm:flex-row gap-4 mb-4">
                     {/* Deal thumbnail */}
                     <div className="relative w-full sm:w-32 h-28 rounded-xl overflow-hidden bg-black/40 flex-shrink-0">
-                      {deal.images?.[0] ? (
-                        <Image
-                          src={deal.images[0]}
-                          alt={deal.name}
-                          fill
-                          className="object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-4xl">🎁</div>
-                      )}
+                      <Image
+                        src={
+                          deal.images?.[0] ||
+                          'https://images.unsplash.com/photo-1544025162-d76694265947?w=600&q=80'
+                        }
+                        alt={deal.name || 'Deal'}
+                        fill
+                        unoptimized
+                        className="object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
                       <span className="absolute top-1 left-1 bg-[#F8D302] text-[#0032A5] font-extrabold text-[10px] px-1.5 py-0.5 rounded">
                         SAVE BIG
                       </span>

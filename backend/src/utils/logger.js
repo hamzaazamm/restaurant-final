@@ -3,11 +3,12 @@
 const winston = require('winston');
 const config = require('../config');
 
-const { combine, timestamp, printf, colorize, errors, json } = winston.format;
+const { combine, timestamp, printf, colorize, errors, json, splat } = winston.format;
 
 const devFormat = combine(
   colorize(),
   timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+  splat(),
   errors({ stack: true }),
   printf(({ level, message, timestamp, stack }) => {
     return `${timestamp} [${level}]: ${stack || message}`;

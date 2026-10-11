@@ -1,6 +1,6 @@
 import { PRODUCTS, CATEGORIES } from './data';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1';
 
 export async function fetchCategories() {
   try {
@@ -47,18 +47,48 @@ export async function fetchProducts(params = {}) {
 }
 
 export async function createOrder(orderPayload) {
+  // Build the backend-compatible payload
+  const backendPayload = {
+    customer: orderPayload.customer,
+    // Backend expects: delivery.address (string), delivery.area, delivery.instructions
+    delivery: {
+      address: [
+        orderPayload.deliveryAddress?.street,
+        orderPayload.deliveryAddress?.area,
+        orderPayload.deliveryAddress?.city || 'Lahore',
+      ]
+        .filter(Boolean)
+        .join(', '),
+      area: orderPayload.deliveryAddress?.area || null,
+      instructions: orderPayload.specialInstructions || null,
+    },
+    // Backend expects items with `productId` (MongoDB ObjectId), not `product`
+    items: orderPayload.items.map((item) => ({
+      productId: item.product,
+      variantId: item.variantId || null,
+      extras: item.extras || [],
+      quantity: item.quantity,
+    })),
+    // Required by backend for idempotency (prevent duplicate orders)
+    idempotencyKey: crypto.randomUUID(),
+    offerId: null,
+  };
+
   try {
     const res = await fetch(`${API_BASE}/orders`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(orderPayload),
+      body: JSON.stringify(backendPayload),
     });
 
     const data = await res.json();
     if (!res.ok) {
-      throw new Error(data.message || 'Failed to place order');
+      // Surface backend validation details if available
+      const detail = data.details?.map((d) => d.message).join(', ');
+      throw new Error(detail || data.message || 'Failed to place order');
     }
-    return data.data;
+    // Normalise: backend returns `orderRef`, frontend uses `orderNumber`
+    return { ...data.data, orderNumber: data.data.orderRef };
   } catch (err) {
     // Fallback simulation for offline/demo use
     console.warn('Backend API unavailable, simulating successful local order:', err.message);
@@ -66,6 +96,7 @@ export async function createOrder(orderPayload) {
     const mockOrder = {
       _id: 'mock-' + Date.now(),
       orderNumber: mockOrderNumber,
+      orderRef: mockOrderNumber,
       status: 'pending',
       customer: orderPayload.customer,
       items: orderPayload.items,
@@ -74,16 +105,12 @@ export async function createOrder(orderPayload) {
         deliveryFeePKR: 150,
         totalPKR: orderPayload.items.reduce((acc, i) => acc + (i.unitPricePKR * i.quantity), 0) + 150,
       },
-      payment: {
-        method: 'cash_on_delivery',
-        status: 'pending',
-      },
+      payment: { method: 'cash_on_delivery', status: 'pending' },
       branch: 'Samanabad Branch',
       estimatedDeliveryTime: '35 - 45 mins',
       createdAt: new Date().toISOString(),
     };
 
-    // Store in localStorage if in browser
     if (typeof window !== 'undefined') {
       const existing = JSON.parse(localStorage.getItem('enb_orders') || '[]');
       existing.unshift(mockOrder);
@@ -108,5 +135,42 @@ export async function fetchOrderTracking(orderNumber) {
       if (found) return found;
     }
     throw new Error('Order not found with number ' + orderNumber);
+  }
+}
+
+export async function fetchOrders(params = {}) {
+  try {
+    const query = new URLSearchParams(params).toString();
+    const res = await fetch(`${API_BASE}/orders${query ? `?${query}` : ''}`, {
+      cache: 'no-store',
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.message || 'Failed to fetch orders from database');
+    }
+    const data = await res.json();
+    return data.data; // { orders: [...], pagination: {...} }
+  } catch (err) {
+    console.error('fetchOrders error:', err);
+    throw err;
+  }
+}
+
+export async function updateOrderStatusApi(orderId, status) {
+  try {
+    const res = await fetch(`${API_BASE}/orders/${orderId}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.message || 'Failed to update order status');
+    }
+    const data = await res.json();
+    return data.data;
+  } catch (err) {
+    console.error('updateOrderStatusApi error:', err);
+    throw err;
   }
 }

@@ -104,17 +104,17 @@ export default function CartDrawer({ open, onClose }) {
                 <li key={item.key} className="flex gap-3 bg-white rounded-xl p-3 shadow-sm border border-gray-100">
                   {/* Product image */}
                   <div className="w-16 h-16 rounded-lg bg-gray-100 overflow-hidden shrink-0">
-                    {item.product.images?.[0] ? (
-                      <Image
-                        src={item.product.images[0]}
-                        alt={item.product.name}
-                        width={64}
-                        height={64}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-2xl">🍔</div>
-                    )}
+                    <Image
+                      src={
+                        item.product.images?.[0] ||
+                        'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&q=80'
+                      }
+                      alt={item.product.name}
+                      width={64}
+                      height={64}
+                      unoptimized
+                      className="w-full h-full object-cover"
+                    />
                   </div>
 
                   {/* Info */}

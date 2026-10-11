@@ -1,236 +1,453 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
+import { fetchOrders, updateOrderStatusApi } from '@/lib/api';
+
+const STATUS_CONFIG = {
+  pending: { label: 'Pending', bg: 'bg-amber-100', text: 'text-amber-800', border: 'border-amber-300', dot: 'bg-amber-500' },
+  confirmed: { label: 'Confirmed', bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-300', dot: 'bg-blue-500' },
+  preparing: { label: 'In Kitchen', bg: 'bg-orange-100', text: 'text-orange-800', border: 'border-orange-300', dot: 'bg-orange-500' },
+  ready: { label: 'Ready', bg: 'bg-indigo-100', text: 'text-indigo-800', border: 'border-indigo-300', dot: 'bg-indigo-500' },
+  out_for_delivery: { label: 'On The Road', bg: 'bg-purple-100', text: 'text-purple-800', border: 'border-purple-300', dot: 'bg-purple-500' },
+  delivered: { label: 'Delivered', bg: 'bg-emerald-100', text: 'text-emerald-800', border: 'border-emerald-300', dot: 'bg-emerald-500' },
+  cancelled: { label: 'Cancelled', bg: 'bg-red-100', text: 'text-red-800', border: 'border-red-300', dot: 'bg-red-500' },
+  rejected: { label: 'Rejected', bg: 'bg-gray-100', text: 'text-gray-800', border: 'border-gray-300', dot: 'bg-gray-500' },
+};
 
 export default function AdminOrdersDashboard() {
   const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState('');
   const [filter, setFilter] = useState('all');
+  const [search, setSearch] = useState('');
+  const [updatingId, setUpdatingId] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (typeof window !== 'undefined') {
-        const stored = JSON.parse(localStorage.getItem('enb_orders') || '[]');
-        if (stored.length === 0) {
-          const sampleOrders = [
-            {
-              _id: 'sample-1',
-              orderNumber: 'ENB-20261010-9182',
-              status: 'preparing',
-              customer: { name: 'Zainab Bibi', phone: '0321-4829104' },
-              deliveryAddress: { street: 'Street 4, Poonch Road', area: 'Samanabad', city: 'Lahore' },
-              items: [
-                { productName: 'Molten Lava Pro Burger', variantName: 'Double Patty', quantity: 2, unitPricePKR: 650 },
-                { productName: 'Loaded Cheesy Dynamite Fries', quantity: 1, unitPricePKR: 480 },
-              ],
-              pricing: { subtotalPKR: 1780, deliveryFeePKR: 0, totalPKR: 1780 },
-              payment: { method: 'cash_on_delivery', status: 'pending' },
-              createdAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-            },
-            {
-              _id: 'sample-2',
-              orderNumber: 'ENB-20261010-7213',
-              status: 'out_for_delivery',
-              customer: { name: 'Usman Ghani', phone: '0300-8842193' },
-              deliveryAddress: { street: 'House 22, Block A', area: 'Gulshan-e-Ravi', city: 'Lahore' },
-              items: [
-                { productName: 'Crown Crust Kabab Pizza', variantName: 'Large 12"', quantity: 1, unitPricePKR: 1150 },
-              ],
-              pricing: { subtotalPKR: 1150, deliveryFeePKR: 150, totalPKR: 1300 },
-              payment: { method: 'cash_on_delivery', status: 'pending' },
-              createdAt: new Date(Date.now() - 35 * 60 * 1000).toISOString(),
-            },
-          ];
-          localStorage.setItem('enb_orders', JSON.stringify(sampleOrders));
-          setOrders(sampleOrders);
-        } else {
-          setOrders(stored);
-        }
+  // Fetch orders from MongoDB backend
+  const loadOrders = useCallback(async (isBackground = false) => {
+    if (!isBackground) setRefreshing(true);
+    setError('');
+
+    try {
+      const data = await fetchOrders({ limit: 100 });
+      if (data?.orders) {
+        setOrders(data.orders);
+        setLastUpdated(new Date());
       }
-    }, 0);
-    return () => clearTimeout(timer);
+    } catch (err) {
+      console.error('Failed to load orders from database:', err);
+      setError('Could not sync with live database. Trying localStorage backup if available.');
+      if (typeof window !== 'undefined') {
+        const local = JSON.parse(localStorage.getItem('enb_orders') || '[]');
+        if (local.length > 0) setOrders(local);
+      }
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, []);
 
-  const updateOrderStatus = (orderNumber, newStatus) => {
-    const updated = orders.map((o) =>
-      o.orderNumber === orderNumber ? { ...o, status: newStatus } : o
-    );
-    setOrders(updated);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('enb_orders', JSON.stringify(updated));
+  // Initial fetch and auto-refresh interval (every 12 seconds)
+  useEffect(() => {
+    loadOrders(false);
+    const interval = setInterval(() => {
+      loadOrders(true);
+    }, 12000);
+    return () => clearInterval(interval);
+  }, [loadOrders]);
+
+  // Update order status in MongoDB
+  const handleStatusChange = async (orderId, newStatus) => {
+    setUpdatingId(orderId);
+    setError('');
+
+    try {
+      await updateOrderStatusApi(orderId, newStatus);
+      // Optimistically update local state
+      setOrders((prev) =>
+        prev.map((o) => (o._id === orderId ? { ...o, status: newStatus } : o))
+      );
+    } catch (err) {
+      console.error('Status update failed:', err);
+      setError(err.message || 'Failed to update order status');
+    } finally {
+      setUpdatingId(null);
     }
   };
 
-  const filteredOrders = orders.filter((o) => filter === 'all' || o.status === filter);
-  const totalRevenue = orders.reduce((sum, o) => sum + (o.pricing?.totalPKR || 0), 0);
+  // Filter & Search logic
+  const filteredOrders = useMemo(() => {
+    return orders.filter((o) => {
+      const matchesFilter = filter === 'all' || o.status === filter;
+      const ref = (o.orderRef || o.orderNumber || '').toLowerCase();
+      const customerName = (o.customer?.name || '').toLowerCase();
+      const customerPhone = (o.customer?.phone || '').toLowerCase();
+      const q = search.trim().toLowerCase();
+      const matchesSearch = !q || ref.includes(q) || customerName.includes(q) || customerPhone.includes(q);
+      return matchesFilter && matchesSearch;
+    });
+  }, [orders, filter, search]);
+
+  // Summary Metrics
+  const stats = useMemo(() => {
+    const total = orders.length;
+    const pending = orders.filter((o) => o.status === 'pending').length;
+    const inKitchen = orders.filter((o) => o.status === 'preparing' || o.status === 'confirmed').length;
+    const onRoad = orders.filter((o) => o.status === 'out_for_delivery').length;
+    const delivered = orders.filter((o) => o.status === 'delivered').length;
+    const revenue = orders
+      .filter((o) => o.status !== 'cancelled' && o.status !== 'rejected')
+      .reduce((sum, o) => sum + (o.pricing?.totalPKR || 0), 0);
+
+    return { total, pending, inKitchen, onRoad, delivered, revenue };
+  }, [orders]);
 
   return (
-    <div className="pt-24 pb-20 min-h-screen bg-gray-50">
+    <div className="pt-24 pb-20 min-h-screen bg-[#F8FAFC]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 border-b border-gray-200 gap-4 mb-8">
-          <div>
-            <span className="text-xs font-bold text-[#0032A5] uppercase tracking-wider block mb-1">
-              Internal Kitchen Console
-            </span>
-            <h1 className="text-3xl font-extrabold font-poppins text-gray-900">
-              Kitchen &amp; Dispatch Dashboard
-            </h1>
-            <p className="text-xs text-gray-500 mt-1">
-              Live orders from Samanabad &amp; Model Town branches
-            </p>
+
+        {/* Top Header */}
+        <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-gray-100 mb-8">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span className="text-xs font-bold text-[#0032A5] tracking-wider uppercase font-poppins">
+                  MongoDB Atlas Live Kitchen Console
+                </span>
+                {lastUpdated && (
+                  <span className="text-[11px] text-gray-400">
+                    • Synced {lastUpdated.toLocaleTimeString()}
+                  </span>
+                )}
+              </div>
+              <h1 className="text-2xl sm:text-4xl font-extrabold font-poppins text-gray-900">
+                Kitchen &amp; Order Dispatch Panel
+              </h1>
+              <p className="text-xs sm:text-sm text-gray-500 mt-1">
+                Real-time incoming customer orders stored directly in database collection &quot;orders&quot;.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => loadOrders(false)}
+                disabled={refreshing}
+                className="flex items-center gap-2 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold font-poppins rounded-xl transition-all disabled:opacity-50"
+              >
+                <span className={refreshing ? 'animate-spin inline-block' : ''}>🔄</span>
+                {refreshing ? 'Refreshing...' : 'Refresh Orders'}
+              </button>
+
+              <Link
+                href="/"
+                className="px-4 py-2.5 bg-[#0032A5] hover:bg-[#002275] text-white text-xs font-bold font-poppins rounded-xl shadow-sm transition-all"
+              >
+                View Website ↗
+              </Link>
+            </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-white rounded-xl border border-gray-200 text-right">
-              <span className="text-[10px] text-gray-400 block font-bold uppercase">Today&apos;s Revenue</span>
-              <span className="font-extrabold text-[#0032A5] font-poppins text-lg">
-                PKR {totalRevenue.toLocaleString()}
+          {/* Quick Metrics Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mt-6 pt-6 border-t border-gray-100">
+            <div className="bg-gray-50 rounded-2xl p-3 text-center border border-gray-100">
+              <span className="text-[10px] uppercase font-bold text-gray-400 block">Total Orders</span>
+              <span className="text-xl font-extrabold font-poppins text-gray-900">{stats.total}</span>
+            </div>
+
+            <div className="bg-amber-50 rounded-2xl p-3 text-center border border-amber-100">
+              <span className="text-[10px] uppercase font-bold text-amber-700 block">New / Pending</span>
+              <span className="text-xl font-extrabold font-poppins text-amber-600">{stats.pending}</span>
+            </div>
+
+            <div className="bg-orange-50 rounded-2xl p-3 text-center border border-orange-100">
+              <span className="text-[10px] uppercase font-bold text-orange-700 block">In Kitchen</span>
+              <span className="text-xl font-extrabold font-poppins text-orange-600">{stats.inKitchen}</span>
+            </div>
+
+            <div className="bg-purple-50 rounded-2xl p-3 text-center border border-purple-100">
+              <span className="text-[10px] uppercase font-bold text-purple-700 block">On The Road</span>
+              <span className="text-xl font-extrabold font-poppins text-purple-600">{stats.onRoad}</span>
+            </div>
+
+            <div className="bg-emerald-50 rounded-2xl p-3 text-center border border-emerald-100">
+              <span className="text-[10px] uppercase font-bold text-emerald-700 block">Delivered</span>
+              <span className="text-xl font-extrabold font-poppins text-emerald-600">{stats.delivered}</span>
+            </div>
+
+            <div className="bg-blue-50 rounded-2xl p-3 text-center border border-blue-100">
+              <span className="text-[10px] uppercase font-bold text-[#0032A5] block">Order Value</span>
+              <span className="text-base font-extrabold font-poppins text-[#0032A5]">
+                PKR {stats.revenue.toLocaleString()}
               </span>
             </div>
-            <Link
-              href="/"
-              className="px-4 py-2.5 bg-gray-200 hover:bg-gray-300 rounded-xl text-xs font-bold font-poppins text-gray-700 transition-colors"
-            >
-              View Website
-            </Link>
           </div>
         </div>
 
-        {/* Filter Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-6">
-          {[
-            { id: 'all', label: 'All Orders' },
-            { id: 'pending', label: 'Pending' },
-            { id: 'confirmed', label: 'Confirmed' },
-            { id: 'preparing', label: 'In Kitchen' },
-            { id: 'out_for_delivery', label: 'Out for Delivery' },
-            { id: 'delivered', label: 'Delivered' },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setFilter(tab.id)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold font-poppins whitespace-nowrap transition-all ${
-                filter === tab.id
-                  ? 'bg-[#0032A5] text-white shadow-sm'
-                  : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-              }`}
-            >
-              {tab.label} ({orders.filter(o => tab.id === 'all' || o.status === tab.id).length})
-            </button>
-          ))}
-        </div>
+        {error && (
+          <div className="mb-6 p-4 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm flex items-center justify-between">
+            <span>⚠️ {error}</span>
+            <button onClick={() => setError('')} className="font-bold ml-4">✕</button>
+          </div>
+        )}
 
-        {/* Orders Table / Cards */}
-        {filteredOrders.length > 0 ? (
-          <div className="space-y-4">
-            {filteredOrders.map((order) => (
-              <div
-                key={order.orderNumber}
-                className="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-4"
+        {/* Filters and Search Bar */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+          {/* Status Tabs */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+            {[
+              { id: 'all', label: 'All', count: stats.total },
+              { id: 'pending', label: 'Pending', count: stats.pending },
+              { id: 'confirmed', label: 'Confirmed', count: orders.filter((o) => o.status === 'confirmed').length },
+              { id: 'preparing', label: 'Kitchen', count: orders.filter((o) => o.status === 'preparing').length },
+              { id: 'out_for_delivery', label: 'On Road', count: stats.onRoad },
+              { id: 'delivered', label: 'Delivered', count: stats.delivered },
+              { id: 'cancelled', label: 'Cancelled', count: orders.filter((o) => o.status === 'cancelled').length },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setFilter(tab.id)}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold font-poppins whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                  filter === tab.id
+                    ? 'bg-[#0032A5] text-white shadow-sm'
+                    : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+                }`}
               >
-                {/* Order Details */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-3">
-                    <span className="font-poppins font-black text-sm text-gray-900 bg-blue-50 text-[#0032A5] px-2.5 py-1 rounded-lg">
-                      {order.orderNumber}
-                    </span>
-                    <span className="text-xs text-gray-400">
-                      {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
-                        order.status === 'delivered'
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : order.status === 'out_for_delivery'
-                          ? 'bg-purple-100 text-purple-800'
-                          : order.status === 'preparing'
-                          ? 'bg-amber-100 text-amber-800'
-                          : 'bg-blue-100 text-[#0032A5]'
-                      }`}
-                    >
-                      {order.status.replace('_', ' ')}
-                    </span>
-                  </div>
-
-                  <div>
-                    <h3 className="font-bold text-sm text-gray-800">
-                      {order.customer?.name} • <span className="font-normal text-gray-600">{order.customer?.phone}</span>
-                    </h3>
-                    <p className="text-xs text-gray-500">
-                      📍 {order.deliveryAddress?.street}, {order.deliveryAddress?.area}, Lahore
-                    </p>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2 pt-1 text-xs text-gray-600">
-                    {order.items?.map((item, idx) => (
-                      <span key={idx} className="bg-gray-100 px-2 py-0.5 rounded">
-                        {item.quantity}x {item.productName} {item.variantName ? `(${item.variantName})` : ''}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Amount and Status Controls */}
-                <div className="flex flex-col sm:flex-row lg:flex-col items-start lg:items-end justify-between gap-3 pt-3 lg:pt-0 border-t lg:border-t-0 border-gray-100">
-                  <div className="text-left lg:text-right">
-                    <span className="text-[10px] text-gray-400 block">Total (COD)</span>
-                    <span className="font-poppins font-extrabold text-base text-[#0032A5]">
-                      PKR {order.pricing?.totalPKR?.toLocaleString()}
-                    </span>
-                  </div>
-
-                  {/* Quick Status Action Buttons */}
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <button
-                      onClick={() => updateOrderStatus(order.orderNumber, 'preparing')}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
-                        order.status === 'preparing'
-                          ? 'bg-amber-500 text-white'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
-                    >
-                      🍳 Kitchen
-                    </button>
-
-                    <button
-                      onClick={() => updateOrderStatus(order.orderNumber, 'out_for_delivery')}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
-                        order.status === 'out_for_delivery'
-                          ? 'bg-purple-600 text-white'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
-                    >
-                      🛵 Rider
-                    </button>
-
-                    <button
-                      onClick={() => updateOrderStatus(order.orderNumber, 'delivered')}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
-                        order.status === 'delivered'
-                          ? 'bg-emerald-600 text-white'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
-                    >
-                      ✓ Delivered
-                    </button>
-
-                    <Link
-                      href={`/track?orderNumber=${order.orderNumber}`}
-                      target="_blank"
-                      className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-50 text-[#0032A5] hover:bg-blue-100 transition-colors"
-                    >
-                      🔍 Track
-                    </Link>
-                  </div>
-                </div>
-              </div>
+                <span>{tab.label}</span>
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                  filter === tab.id ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
+                }`}>
+                  {tab.count}
+                </span>
+              </button>
             ))}
           </div>
+
+          {/* Search Box */}
+          <div className="w-full md:w-72">
+            <input
+              type="text"
+              placeholder="Search by Order #, Name, Phone..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full px-4 py-2 rounded-xl border border-gray-200 bg-white text-xs sm:text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0032A5]"
+            />
+          </div>
+        </div>
+
+        {/* Orders Listing */}
+        {loading ? (
+          <div className="p-16 text-center bg-white rounded-3xl border border-gray-100 shadow-sm">
+            <span className="text-4xl block animate-spin mb-3">⏳</span>
+            <p className="text-sm font-bold text-gray-600 font-poppins">Loading orders from MongoDB database...</p>
+          </div>
+        ) : filteredOrders.length > 0 ? (
+          <div className="space-y-4">
+            {filteredOrders.map((order) => {
+              const orderRef = order.orderRef || order.orderNumber || order._id;
+              const statusCfg = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending;
+              const isUpdating = updatingId === order._id;
+              const deliveryAddress =
+                order.delivery?.address ||
+                order.deliveryAddress?.street ||
+                'Lahore';
+              const area = order.delivery?.area || order.deliveryAddress?.area || 'Lahore';
+              const instructions = order.delivery?.instructions || order.specialInstructions;
+
+              return (
+                <div
+                  key={order._id || orderRef}
+                  className="bg-white rounded-3xl p-6 border border-gray-200/80 shadow-sm hover:shadow-md transition-all"
+                >
+                  <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
+
+                    {/* Left Column: Customer & Delivery Information */}
+                    <div className="flex-1 space-y-3">
+                      {/* Order Badges Header */}
+                      <div className="flex flex-wrap items-center gap-2.5">
+                        <span className="font-poppins font-black text-sm tracking-wide bg-blue-50 text-[#0032A5] px-3 py-1 rounded-xl border border-blue-100">
+                          {orderRef}
+                        </span>
+
+                        <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-xl uppercase ${statusCfg.bg} ${statusCfg.text} border ${statusCfg.border}`}>
+                          <span className={`w-2 h-2 rounded-full ${statusCfg.dot}`}></span>
+                          {statusCfg.label}
+                        </span>
+
+                        <span className="text-xs text-gray-400 font-medium">
+                          🕒 {new Date(order.createdAt).toLocaleDateString()} at{' '}
+                          {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+
+                      {/* Customer Contact */}
+                      <div className="pt-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-base text-gray-900 font-poppins">
+                            {order.customer?.name || 'Guest Customer'}
+                          </span>
+                          {order.customer?.phone && (
+                            <a
+                              href={`tel:${order.customer.phone}`}
+                              className="text-xs font-bold text-[#0032A5] bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded-lg transition-colors"
+                            >
+                              📞 {order.customer.phone}
+                            </a>
+                          )}
+                        </div>
+
+                        <p className="text-xs text-gray-600 mt-1 flex items-start gap-1">
+                          <span>📍</span>
+                          <span>
+                            <strong>{deliveryAddress}</strong>
+                            {area && <span className="ml-1 text-gray-400">({area})</span>}
+                          </span>
+                        </p>
+
+                        {instructions && (
+                          <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-1.5 mt-2 inline-block">
+                            📝 <strong>Special Note:</strong> {instructions}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Items Ordered */}
+                      <div className="pt-2">
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
+                          Order Items ({order.items?.length || 0})
+                        </span>
+                        <div className="flex flex-wrap gap-2">
+                          {order.items?.map((item, idx) => (
+                            <div
+                              key={idx}
+                              className="bg-gray-50 border border-gray-200/60 rounded-xl px-3 py-1.5 text-xs text-gray-800 flex items-center gap-1.5"
+                            >
+                              <span className="font-bold text-[#0032A5]">{item.quantity}×</span>
+                              <span className="font-medium">{item.name || item.productName}</span>
+                              {item.variantName && (
+                                <span className="text-gray-400 text-[11px]">({item.variantName})</span>
+                              )}
+                              <span className="text-gray-500 font-semibold ml-1">
+                                PKR {(item.lineTotalPKR || item.unitPricePKR * item.quantity)?.toLocaleString()}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right Column: Pricing & Quick Actions */}
+                    <div className="lg:w-72 flex flex-col justify-between items-start lg:items-end gap-4 pt-4 lg:pt-0 border-t lg:border-t-0 border-gray-100">
+                      
+                      {/* Price Summary */}
+                      <div className="text-left lg:text-right w-full bg-gray-50/70 p-3.5 rounded-2xl border border-gray-100">
+                        <div className="flex justify-between lg:justify-end gap-3 text-xs text-gray-500 mb-0.5">
+                          <span>Subtotal:</span>
+                          <span>PKR {order.pricing?.subtotalPKR?.toLocaleString() || 0}</span>
+                        </div>
+                        <div className="flex justify-between lg:justify-end gap-3 text-xs text-gray-500 mb-1">
+                          <span>Delivery:</span>
+                          <span>PKR {order.pricing?.deliveryChargePKR?.toLocaleString() || 0}</span>
+                        </div>
+                        <div className="flex justify-between lg:justify-end gap-3 font-poppins font-extrabold text-base text-[#0032A5] border-t border-gray-200 pt-1">
+                          <span>Total (COD):</span>
+                          <span>PKR {order.pricing?.totalPKR?.toLocaleString() || 0}</span>
+                        </div>
+                      </div>
+
+                      {/* Status Action Buttons */}
+                      <div className="w-full space-y-2">
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block text-left lg:text-right">
+                          Change Status
+                        </span>
+                        
+                        <div className="flex flex-wrap items-center gap-1.5 justify-start lg:justify-end">
+                          {/* Pending -> Confirmed */}
+                          {order.status === 'pending' && (
+                            <button
+                              disabled={isUpdating}
+                              onClick={() => handleStatusChange(order._id, 'confirmed')}
+                              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold font-poppins transition-all shadow-sm disabled:opacity-50"
+                            >
+                              ✓ Confirm
+                            </button>
+                          )}
+
+                          {/* Move to Kitchen */}
+                          {(order.status === 'pending' || order.status === 'confirmed') && (
+                            <button
+                              disabled={isUpdating}
+                              onClick={() => handleStatusChange(order._id, 'preparing')}
+                              className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold font-poppins transition-all shadow-sm disabled:opacity-50"
+                            >
+                              🍳 Send to Kitchen
+                            </button>
+                          )}
+
+                          {/* Move to Rider */}
+                          {(order.status === 'preparing' || order.status === 'ready') && (
+                            <button
+                              disabled={isUpdating}
+                              onClick={() => handleStatusChange(order._id, 'out_for_delivery')}
+                              className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold font-poppins transition-all shadow-sm disabled:opacity-50"
+                            >
+                              🛵 Hand to Rider
+                            </button>
+                          )}
+
+                          {/* Mark Delivered */}
+                          {order.status === 'out_for_delivery' && (
+                            <button
+                              disabled={isUpdating}
+                              onClick={() => handleStatusChange(order._id, 'delivered')}
+                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold font-poppins transition-all shadow-sm disabled:opacity-50"
+                            >
+                              🎉 Mark Delivered
+                            </button>
+                          )}
+
+                          {/* Cancel if pending */}
+                          {order.status !== 'delivered' && order.status !== 'cancelled' && (
+                            <button
+                              disabled={isUpdating}
+                              onClick={() => {
+                                if (window.confirm(`Are you sure you want to cancel order ${orderRef}?`)) {
+                                  handleStatusChange(order._id, 'cancelled');
+                                }
+                              }}
+                              className="px-2.5 py-1.5 bg-gray-100 hover:bg-red-50 hover:text-red-600 text-gray-500 rounded-xl text-xs font-bold font-poppins transition-all disabled:opacity-50"
+                            >
+                              ✕ Cancel
+                            </button>
+                          )}
+
+                          {/* Track Link */}
+                          <Link
+                            href={`/track?orderNumber=${orderRef}`}
+                            target="_blank"
+                            className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold font-poppins transition-all inline-flex items-center gap-1"
+                          >
+                            <span>🔍 Track</span>
+                          </Link>
+                        </div>
+                      </div>
+
+                    </div>
+
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         ) : (
-          <div className="p-12 text-center bg-white rounded-2xl border border-gray-200 text-gray-400">
-            No orders found matching filter.
+          <div className="p-16 text-center bg-white rounded-3xl border border-gray-100 shadow-sm">
+            <span className="text-4xl block mb-2">📦</span>
+            <h3 className="text-lg font-bold text-gray-800 font-poppins mb-1">No Orders Found</h3>
+            <p className="text-xs text-gray-500">
+              {search ? 'No orders match your search criteria.' : 'No orders in this status category.'}
+            </p>
           </div>
         )}
 

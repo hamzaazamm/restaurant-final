@@ -87,7 +87,8 @@ const offerSchema = new mongoose.Schema(
   }
 );
 
-offerSchema.index({ slug: 1 });
+// Indexes
+// Note: slug unique index is already defined via `unique: true` on the field
 offerSchema.index({ isActive: 1 });
 offerSchema.index({ validFrom: 1, validUntil: 1 });
 

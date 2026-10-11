@@ -16,11 +16,11 @@ const ORDER_STATUSES = [
 
 // Valid transitions: what status can follow each status
 const VALID_TRANSITIONS = {
-  pending: ['confirmed', 'rejected', 'cancelled'],
-  confirmed: ['preparing', 'cancelled'],
-  preparing: ['ready', 'cancelled'],
-  ready: ['out_for_delivery', 'cancelled'],
-  out_for_delivery: ['delivered'],
+  pending: ['confirmed', 'preparing', 'rejected', 'cancelled'],
+  confirmed: ['preparing', 'ready', 'out_for_delivery', 'cancelled'],
+  preparing: ['ready', 'out_for_delivery', 'delivered', 'cancelled'],
+  ready: ['out_for_delivery', 'delivered', 'cancelled'],
+  out_for_delivery: ['delivered', 'cancelled'],
   delivered: [], // Terminal
   cancelled: [], // Terminal
   rejected: [],  // Terminal

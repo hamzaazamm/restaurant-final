@@ -144,6 +144,7 @@ const productSchema = new mongoose.Schema(
 );
 
 // Indexes for common query patterns
+// Note: slug unique index is already defined via `unique: true` on the field
 productSchema.index({ category: 1, isAvailable: 1, isArchived: 1 });
 productSchema.index({ isFeatured: 1 });
 productSchema.index({ isBestSeller: 1 });

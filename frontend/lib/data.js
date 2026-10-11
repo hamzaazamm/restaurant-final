@@ -17,7 +17,7 @@ export const PRODUCTS = [
     category: { _id: 'burgers', name: 'Burgers', slug: 'burgers' },
     description: 'Signature double gourmet beef patty with erupting molten cheddar cheese, grilled caramelized onions, crisp lettuce, and special ENB secret sauce on a toasted brioche bun.',
     basePricePKR: 650,
-    images: ['/images/hero_burger.jpg'],
+    images: ['https://images.unsplash.com/photo-1586190848861-99aa4a171e90?w=800&q=80'],
     isFeatured: true,
     isBestSeller: true,
     isAvailable: true,

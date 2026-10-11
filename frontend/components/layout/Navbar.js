@@ -11,6 +11,7 @@ const navLinks = [
   { href: '/menu', label: 'Menu' },
   { href: '/deals', label: 'Deals' },
   { href: '/track', label: 'Track Order' },
+  { href: '/admin', label: 'Kitchen Console' },
   { href: '/about', label: 'About' },
   { href: '/contact', label: 'Contact' },
 ];

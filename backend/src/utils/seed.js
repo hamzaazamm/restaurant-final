@@ -18,12 +18,12 @@ const Offer = require('../models/Offer');
 const logger = require('../utils/logger');
 
 const SAMPLE_CATEGORIES = [
-  { name: 'Burgers', slug: 'burgers', icon: '🍔', sortOrder: 1, description: 'Juicy, flame-grilled burgers loaded with fresh toppings' },
-  { name: 'Pizzas', slug: 'pizzas', icon: '🍕', sortOrder: 2, description: 'Freshly baked pizzas with premium toppings' },
-  { name: 'Fried Chicken', slug: 'fried-chicken', icon: '🍗', sortOrder: 3, description: 'Crispy golden fried chicken — Lahore style' },
-  { name: 'Deals', slug: 'deals', icon: '🎁', sortOrder: 4, description: 'Best value combo deals for the whole family' },
-  { name: 'Sides', slug: 'sides', icon: '🍟', sortOrder: 5, description: 'Loaded fries, spring rolls, and more' },
-  { name: 'Drinks', slug: 'drinks', icon: '🥤', sortOrder: 6, description: 'Refreshing beverages to complement your meal' },
+  { name: 'Burgers', slug: 'burgers', icon: '🍔', sortOrder: 1, image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=600&q=80', description: 'Juicy, flame-grilled burgers loaded with fresh toppings' },
+  { name: 'Pizzas', slug: 'pizzas', icon: '🍕', sortOrder: 2, image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=600&q=80', description: 'Freshly baked pizzas with premium toppings' },
+  { name: 'Fried Chicken', slug: 'fried-chicken', icon: '🍗', sortOrder: 3, image: 'https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?w=600&q=80', description: 'Crispy golden fried chicken — Lahore style' },
+  { name: 'Deals', slug: 'deals', icon: '🎁', sortOrder: 4, image: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=600&q=80', description: 'Best value combo deals for the whole family' },
+  { name: 'Sides', slug: 'sides', icon: '🍟', sortOrder: 5, image: 'https://images.unsplash.com/photo-1585109649139-366815a0d713?w=600&q=80', description: 'Loaded fries, spring rolls, and more' },
+  { name: 'Drinks', slug: 'drinks', icon: '🥤', sortOrder: 6, image: 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=600&q=80', description: 'Refreshing beverages to complement your meal' },
 ];
 
 // NOTE: All prices below are SAMPLE/PROVISIONAL — replace with verified menu data
@@ -36,9 +36,10 @@ const getSampleProducts = (categories) => {
     {
       name: 'Molten Lava Pro Burger',
       slug: 'molten-lava-pro-burger',
-      description: '[SAMPLE] A signature double-patty burger with molten cheese, crispy lettuce, fresh tomatoes, and our special ENB sauce.',
+      description: 'A signature double-patty burger with molten cheese, crispy lettuce, fresh tomatoes, and our special ENB sauce.',
       category: catMap['burgers'],
       basePricePKR: 650,
+      images: ['https://images.unsplash.com/photo-1586190848861-99aa4a171e90?w=800&q=80'],
       variants: [
         { name: 'Single', pricePKR: 450, isDefault: true },
         { name: 'Double', pricePKR: 650 },
@@ -56,9 +57,10 @@ const getSampleProducts = (categories) => {
     {
       name: 'Zinger Burger',
       slug: 'zinger-burger',
-      description: '[SAMPLE] Crispy spiced chicken fillet with coleslaw and mayo in a toasted bun.',
+      description: 'Crispy spiced chicken fillet with coleslaw and mayo in a toasted bun.',
       category: catMap['burgers'],
       basePricePKR: 420,
+      images: ['https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=800&q=80'],
       isFeatured: true,
       isBestSeller: true,
       tags: ['chicken', 'crispy'],
@@ -67,18 +69,20 @@ const getSampleProducts = (categories) => {
     {
       name: 'Fish Fillet Burger',
       slug: 'fish-fillet-burger',
-      description: '[SAMPLE] Crispy fish fillet with tartar sauce and fresh lettuce.',
+      description: 'Crispy fish fillet with tartar sauce and fresh lettuce.',
       category: catMap['burgers'],
       basePricePKR: 380,
+      images: ['https://images.unsplash.com/photo-1521305916504-4a1121188589?w=800&q=80'],
       tags: ['fish'],
       sortOrder: 3,
     },
     {
       name: 'Classic Beef Burger',
       slug: 'classic-beef-burger',
-      description: '[SAMPLE] A no-frills classic beef patty with all the essentials.',
+      description: 'A no-frills classic beef patty with all the essentials.',
       category: catMap['burgers'],
       basePricePKR: 320,
+      images: ['https://images.unsplash.com/photo-1550547660-d9450f859349?w=800&q=80'],
       sortOrder: 4,
     },
 
@@ -86,9 +90,10 @@ const getSampleProducts = (categories) => {
     {
       name: 'Crown Crust Kabab Pizza',
       slug: 'crown-crust-kabab-pizza',
-      description: '[SAMPLE] A fan favourite — loaded kabab toppings on our special crown crust base.',
+      description: 'A fan favourite — loaded kabab toppings on our special crown crust base.',
       category: catMap['pizzas'],
       basePricePKR: 950,
+      images: ['https://images.unsplash.com/photo-1513104890138-7c749659a591?w=800&q=80'],
       variants: [
         { name: 'Medium (8")', pricePKR: 650, isDefault: true },
         { name: 'Large (12")', pricePKR: 950 },
@@ -102,9 +107,10 @@ const getSampleProducts = (categories) => {
     {
       name: 'Chicken Tikka Pizza',
       slug: 'chicken-tikka-pizza',
-      description: '[SAMPLE] Tender chicken tikka chunks with onions, capsicum, and masala sauce.',
+      description: 'Tender chicken tikka chunks with onions, capsicum, and masala sauce.',
       category: catMap['pizzas'],
       basePricePKR: 850,
+      images: ['https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=800&q=80'],
       variants: [
         { name: 'Medium (8")', pricePKR: 600, isDefault: true },
         { name: 'Large (12")', pricePKR: 850 },
@@ -117,9 +123,10 @@ const getSampleProducts = (categories) => {
     {
       name: 'BBQ Chicken Pizza',
       slug: 'bbq-chicken-pizza',
-      description: '[SAMPLE] Smoky BBQ sauce base topped with grilled chicken and mozzarella.',
+      description: 'Smoky BBQ sauce base topped with grilled chicken and mozzarella.',
       category: catMap['pizzas'],
       basePricePKR: 780,
+      images: ['https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=800&q=80'],
       variants: [
         { name: 'Medium (8")', pricePKR: 550, isDefault: true },
         { name: 'Large (12")', pricePKR: 780 },
@@ -131,9 +138,10 @@ const getSampleProducts = (categories) => {
     {
       name: 'Crispy Fried Chicken (2 Pcs)',
       slug: 'crispy-fried-chicken-2pc',
-      description: '[SAMPLE] Our signature crispy spiced chicken pieces, golden and juicy inside.',
+      description: 'Our signature crispy spiced chicken pieces, golden and juicy inside.',
       category: catMap['fried-chicken'],
       basePricePKR: 380,
+      images: ['https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?w=800&q=80'],
       isBestSeller: true,
       isFeatured: true,
       sortOrder: 1,
@@ -141,9 +149,10 @@ const getSampleProducts = (categories) => {
     {
       name: 'Hot Wings (6 Pcs)',
       slug: 'hot-wings-6pc',
-      description: '[SAMPLE] Spicy buffalo wings tossed in our house hot sauce.',
+      description: 'Spicy buffalo wings tossed in our house hot sauce.',
       category: catMap['fried-chicken'],
       basePricePKR: 420,
+      images: ['https://images.unsplash.com/photo-1527477378408-180a5633205b?w=800&q=80'],
       tags: ['spicy', 'wings'],
       sortOrder: 2,
     },
@@ -152,26 +161,29 @@ const getSampleProducts = (categories) => {
     {
       name: 'Loaded Fries',
       slug: 'loaded-fries',
-      description: '[SAMPLE] Crispy fries topped with cheese sauce, jalapeños, and sour cream.',
+      description: 'Crispy fries topped with cheese sauce, jalapeños, and sour cream.',
       category: catMap['sides'],
       basePricePKR: 280,
+      images: ['https://images.unsplash.com/photo-1585109649139-366815a0d713?w=800&q=80'],
       isFeatured: true,
       sortOrder: 1,
     },
     {
       name: 'Spring Rolls (4 Pcs)',
       slug: 'spring-rolls-4pc',
-      description: '[SAMPLE] Crispy vegetable spring rolls served with sweet chilli dip.',
+      description: 'Crispy vegetable spring rolls served with sweet chilli dip.',
       category: catMap['sides'],
       basePricePKR: 200,
+      images: ['https://images.unsplash.com/photo-1544025162-d76694265947?w=800&q=80'],
       sortOrder: 2,
     },
     {
       name: 'Mexican Sandwich',
       slug: 'mexican-sandwich',
-      description: '[SAMPLE] Spiced chicken with guacamole and jalapeños in a toasted sub.',
+      description: 'Spiced chicken with guacamole and jalapeños in a toasted sub.',
       category: catMap['sides'],
       basePricePKR: 350,
+      images: ['https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=800&q=80'],
       sortOrder: 3,
     },
 
@@ -179,9 +191,10 @@ const getSampleProducts = (categories) => {
     {
       name: 'Soft Drink',
       slug: 'soft-drink',
-      description: '[SAMPLE] Pepsi, 7Up, or Mountain Dew.',
+      description: 'Pepsi, 7Up, or Mountain Dew.',
       category: catMap['drinks'],
       basePricePKR: 80,
+      images: ['https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=800&q=80'],
       variants: [
         { name: 'Regular (330ml)', pricePKR: 80, isDefault: true },
         { name: 'Large (500ml)', pricePKR: 120 },
@@ -191,9 +204,10 @@ const getSampleProducts = (categories) => {
     {
       name: 'Mineral Water',
       slug: 'mineral-water',
-      description: '[SAMPLE] Nestle Pure Life 500ml.',
+      description: 'Nestle Pure Life 500ml.',
       category: catMap['drinks'],
       basePricePKR: 60,
+      images: ['https://images.unsplash.com/photo-1548839140-29a749e1bc4e?w=800&q=80'],
       sortOrder: 2,
     },
   ];

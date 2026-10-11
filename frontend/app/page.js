@@ -18,7 +18,7 @@ export default function HomePage() {
     // Attempt dynamic fetch from backend if running, otherwise keep rich initial data
     const loadDynamicData = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1';
         const [catRes, prodRes] = await Promise.allSettled([
           fetch(`${apiUrl}/categories`).then((r) => r.json()),
           fetch(`${apiUrl}/products?limit=50`).then((r) => r.json()),

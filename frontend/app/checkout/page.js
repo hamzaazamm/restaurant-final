@@ -68,10 +68,13 @@ export default function CheckoutPage() {
           landmark: formData.landmark.trim() || undefined,
         },
         items: items.map((item) => ({
-          product: item.product._id || item.product.slug,
+          // Pass _id for backend validation; api.js maps it to productId
+          product: item.product._id,
           productName: item.product.name,
+          variantId: item.variantId || null,
           variantName: item.variantName || null,
-          extras: item.extras || [],
+          // extras should be array of extra IDs (strings) for backend lookup
+          extras: (item.extras || []).map((e) => (typeof e === 'object' ? e._id : e)),
           quantity: item.quantity,
           unitPricePKR: item.unitPricePKR,
         })),
@@ -333,16 +336,16 @@ export default function CheckoutPage() {
                 {items.map((item) => (
                   <div key={item.key} className="py-3 flex gap-3 items-center">
                     <div className="relative w-12 h-12 rounded-xl bg-gray-100 overflow-hidden flex-shrink-0">
-                      {item.product?.images?.[0] ? (
-                        <Image
-                          src={item.product.images[0]}
-                          alt={item.product.name}
-                          fill
-                          className="object-cover"
-                        />
-                      ) : (
-                        <span className="w-full h-full flex items-center justify-center text-xl">🍔</span>
-                      )}
+                      <Image
+                        src={
+                          item.product?.images?.[0] ||
+                          'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&q=80'
+                        }
+                        alt={item.product?.name || 'Item'}
+                        fill
+                        unoptimized
+                        className="object-cover"
+                      />
                     </div>
 
                     <div className="flex-1 min-w-0">
